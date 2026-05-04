@@ -5,7 +5,9 @@ import torch.nn as nn
 class TCNBlock(nn.Module):
     def __init__(self, channels, kernel_size=3, dilation=1):
         super().__init__()
+        # 卷积后输出会变短,需要补空位,让卷积后长度不丢
         self.padding = (kernel_size - 1) * dilation
+        # 多通道卷积
         self.conv = nn.Conv1d(
             in_channels=channels,
             out_channels=channels,
@@ -13,14 +15,18 @@ class TCNBlock(nn.Module):
             dilation=dilation,
             padding=self.padding,
         )
+        # 激活函数
         self.relu = nn.ReLU()
 
     def forward(self, x):
+        # 带膨胀的一维卷积[标准多通道卷积]
         out = self.conv(x)
+        # 裁剪到原时间长度
         out = out[:, :, :x.size(-1)]
+        # 残差连接,再经过ReLU
         return self.relu(out + x)
 
-
+# lstm + rcn 的模型
 class ResourcePredictor(nn.Module):
     def __init__(
         self,
@@ -32,18 +38,28 @@ class ResourcePredictor(nn.Module):
     ):
         super().__init__()
         self.pred_horizon = pred_horizon
-
+        """
+        ChannelMix
+        3 个输入维度混合成 hidden_dim 维特征:
+        输入 x
+        ↓
+        Linear：线性变换，把 3 维变成 hidden_dim 维
+        ↓
+        ReLU：非线性激活，把负数变成 0
+        ↓
+        输出 z 
+        """
         self.channel_mix = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
         )
 
         self.tcn = nn.Sequential(
-            *[
+            *[ # * 列表展开
                 TCNBlock(
                     channels=hidden_dim,
                     kernel_size=3,
-                    dilation=2 ** i,
+                    dilation=2 ** i, # 幂运算
                 )
                 for i in range(tcn_layers)
             ]
@@ -61,10 +77,15 @@ class ResourcePredictor(nn.Module):
 
     def forward(self, x):
         z = self.channel_mix(x)
-        z = z.transpose(1, 2)
+        z = z.transpose(1, 2) # 交换 z 的第 1 维和第 2 维。
         z = self.tcn(z)
-        z = z.transpose(1, 2)
+        z = z.transpose(1, 2) # 交换 z 的第 1 维和第 2 维。
 
+        """
+        output = 每个时间步的输出
+        h_n    = 最后时刻的隐藏状态:LSTM 在当前时刻对外输出的状态表示。
+        c_n    = 最后时刻的记忆状态:LSTM 内部保存的长期记忆。
+        """ 
         _, (h_n, _) = self.lstm(z)
         s = h_n[-1]
 

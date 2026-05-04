@@ -26,10 +26,8 @@ def save_checkpoint(path, model, mean, std, columns, config):
 
 
 def load_checkpoint(path, map_location="cpu"):
-    try:
-        return torch.load(path, map_location=map_location)
-    except Exception:
-        return torch.load(path, map_location=map_location, weights_only=False)
+    # 本项目的 checkpoint 是自己训练生成的，里面不只包含权重，还有 mean/std/config。
+    return torch.load(path, map_location=map_location, weights_only=False)
 
 
 def infer_dt_seconds(ts):

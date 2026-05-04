@@ -1,6 +1,7 @@
 /plots/
 /plots_data/
 /plots_tcn_lstm/
+/predictor/plots_eval/
 
 __pycache__/
 *.pyc
