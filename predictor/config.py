@@ -15,10 +15,13 @@ TCN_LAYERS = 3
 # LSTM 隐藏状态维度
 LSTM_HIDDEN = 64
 
+# 模型预测相对最后一个历史点的增量，再加回基准值
+MODEL_MODE = "last_value_residual"
+
 # 输入历史窗口长度 T
 WINDOW_SIZE = 60
 
-# 直接预测未来 H 个时间步
+# 预测未来 H 个时间步
 PRED_HORIZON = 10
 
 # 每次训练送入模型的样本数

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from config import CKPT_PATH, DATA_PATH
+from config import CKPT_PATH, DATA_PATH, MODEL_MODE
 from dataset import load_resource_values
 from model import ResourcePredictor
 from utils import infer_dt_seconds, load_checkpoint
@@ -13,6 +13,8 @@ from utils import infer_dt_seconds, load_checkpoint
 def load_model(ckpt_path=CKPT_PATH, device="cpu"):
     ckpt = load_checkpoint(ckpt_path, map_location=device)
     cfg = ckpt["config"]
+    if cfg.get("model_mode") != MODEL_MODE:
+        raise ValueError(f"checkpoint is not {MODEL_MODE}; run train.py again.")
     model = ResourcePredictor(
         input_dim=cfg["input_dim"],
         hidden_dim=cfg["hidden_dim"],

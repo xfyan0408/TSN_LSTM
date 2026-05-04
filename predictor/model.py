@@ -76,6 +76,9 @@ class ResourcePredictor(nn.Module):
         self.head_m = nn.Linear(lstm_hidden, pred_horizon)
 
     def forward(self, x):
+        # x 是归一化后的历史窗口，base 也在归一化空间里。
+        base = x[:, -1:, :].repeat(1, self.pred_horizon, 1)
+
         z = self.channel_mix(x)
         z = z.transpose(1, 2) # 交换 z 的第 1 维和第 2 维。
         z = self.tcn(z)
@@ -89,7 +92,8 @@ class ResourcePredictor(nn.Module):
         _, (h_n, _) = self.lstm(z)
         s = h_n[-1]
 
-        pred_b = self.head_b(s)
-        pred_c = self.head_c(s)
-        pred_m = self.head_m(s)
-        return torch.stack([pred_b, pred_c, pred_m], dim=-1)
+        delta_b = self.head_b(s)
+        delta_c = self.head_c(s)
+        delta_m = self.head_m(s)
+        delta = torch.stack([delta_b, delta_c, delta_m], dim=-1)
+        return base + delta

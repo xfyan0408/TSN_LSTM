@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from config import CKPT_PATH, DATA_PATH, ROOT_DIR, TRAIN_RATIO, VAL_RATIO
+from config import CKPT_PATH, DATA_PATH, MODEL_MODE, ROOT_DIR, TRAIN_RATIO, VAL_RATIO
 from dataset import load_resource_values
 from model import ResourcePredictor
 from utils import load_checkpoint
@@ -22,6 +22,8 @@ def make_windows(values, window_size, pred_horizon):
 def load_model(ckpt_path, device):
     ckpt = load_checkpoint(ckpt_path, map_location=device)
     cfg = ckpt["config"]
+    if cfg.get("model_mode") != MODEL_MODE:
+        raise ValueError(f"checkpoint is not {MODEL_MODE}; run train.py again.")
     model = ResourcePredictor(
         input_dim=cfg["input_dim"],
         hidden_dim=cfg["hidden_dim"],
@@ -151,6 +153,22 @@ def main():
     print(f"best sample: idx={best_idx}, RMSE={sample_rmse[best_idx]:.6f}")
     print(f"median sample: idx={median_idx}, RMSE={sample_rmse[median_idx]:.6f}")
     print(f"worst sample: idx={worst_idx}, RMSE={sample_rmse[worst_idx]:.6f}")
+    for name, mae, rmse in zip(
+        columns,
+        np.abs(err[worst_idx]).mean(axis=0),
+        np.sqrt((err[worst_idx] ** 2).mean(axis=0)),
+    ):
+        print(f"worst {name}: MAE={mae:.6f}, RMSE={rmse:.6f}")
+
+    for q in [50, 75, 90, 95, 99, 100]:
+        print(f"sample RMSE P{q}: {np.percentile(sample_rmse, q):.6f}")
+
+    sq = sample_rmse ** 2
+    order = np.argsort(sq)[::-1]
+    for k in [1, 5, 10, 20, 50]:
+        k = min(k, len(order))
+        share = sq[order[:k]].sum() / sq.sum()
+        print(f"top {k} samples contribute {share * 100:.2f}% of total squared error")
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

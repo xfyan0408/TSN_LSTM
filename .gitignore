@@ -2,9 +2,11 @@
 /plots_data/
 /plots_tcn_lstm/
 /predictor/plots_eval/
+/doc/
 
 __pycache__/
 *.pyc
 *.pt
 *.csv
 *.docx
+*.md

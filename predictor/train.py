@@ -11,6 +11,7 @@ from config import (
     INPUT_DIM,
     LR,
     LSTM_HIDDEN,
+    MODEL_MODE,
     PRED_HORIZON,
     TCN_LAYERS,
     WINDOW_SIZE,
@@ -65,6 +66,7 @@ def train():
         "hidden_dim": HIDDEN_DIM,
         "tcn_layers": TCN_LAYERS,
         "lstm_hidden": LSTM_HIDDEN,
+        "model_mode": MODEL_MODE,
         "pred_horizon": PRED_HORIZON,
         "window_size": WINDOW_SIZE,
     }
