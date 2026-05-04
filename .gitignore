@@ -2,5 +2,8 @@
 /plots_data/
 /plots_tcn_lstm/
 
+__pycache__/
+*.pyc
+*.pt
 *.csv
 *.docx
