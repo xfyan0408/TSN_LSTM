@@ -1,0 +1,6 @@
+/plots/
+/plots_data/
+/plots_tcn_lstm/
+
+*.csv
+*.docx
