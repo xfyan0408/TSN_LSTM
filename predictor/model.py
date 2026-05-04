@@ -71,9 +71,16 @@ class ResourcePredictor(nn.Module):
             batch_first=True,
         )
 
-        self.head_b = nn.Linear(lstm_hidden, pred_horizon)
-        self.head_c = nn.Linear(lstm_hidden, pred_horizon)
-        self.head_m = nn.Linear(lstm_hidden, pred_horizon)
+        def make_head():
+            return nn.Sequential(
+                nn.Linear(lstm_hidden, lstm_hidden),
+                nn.GELU(),
+                nn.Linear(lstm_hidden, pred_horizon),
+            )
+
+        self.head_b = make_head()
+        self.head_c = make_head()
+        self.head_m = make_head()
 
     def forward(self, x):
         # x 是归一化后的历史窗口，base 也在归一化空间里。

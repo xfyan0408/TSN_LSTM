@@ -127,6 +127,13 @@ def main():
     train_raw = values[:i_train]
     val_raw = values[i_train:i_val]
     test_raw = values[i_val:]
+    print("train mean:", train_raw.mean(axis=0))
+    print("val mean:", val_raw.mean(axis=0))
+    print("test mean:", test_raw.mean(axis=0))
+    print("train p95:", np.percentile(train_raw, 95, axis=0))
+    print("val p95:", np.percentile(val_raw, 95, axis=0))
+    print("test p95:", np.percentile(test_raw, 95, axis=0))
+
     val_ctx = np.concatenate([train_raw[-cfg["window_size"]:], val_raw], axis=0)
     test_ctx = np.concatenate([val_ctx[-cfg["window_size"]:], test_raw], axis=0)
 
