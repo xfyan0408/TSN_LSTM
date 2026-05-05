@@ -28,7 +28,7 @@ PRED_HORIZON = 10
 BATCH_SIZE = 64
 
 # 训练轮数
-EPOCHS = 50
+EPOCHS = 500
 
 # Adam 优化器学习率
 # Adam 优化器就是训练神经网络时用来更新模型参数的方法

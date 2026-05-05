@@ -127,12 +127,6 @@ def main():
     train_raw = values[:i_train]
     val_raw = values[i_train:i_val]
     test_raw = values[i_val:]
-    print("train mean:", train_raw.mean(axis=0))
-    print("val mean:", val_raw.mean(axis=0))
-    print("test mean:", test_raw.mean(axis=0))
-    print("train p95:", np.percentile(train_raw, 95, axis=0))
-    print("val p95:", np.percentile(val_raw, 95, axis=0))
-    print("test p95:", np.percentile(test_raw, 95, axis=0))
 
     val_ctx = np.concatenate([train_raw[-cfg["window_size"]:], val_raw], axis=0)
     test_ctx = np.concatenate([val_ctx[-cfg["window_size"]:], test_raw], axis=0)
@@ -148,34 +142,63 @@ def main():
     rmse_all = float(np.sqrt((err ** 2).mean()))
     mae_dim = np.abs(err).mean(axis=(0, 1))
     rmse_dim = np.sqrt((err ** 2).mean(axis=(0, 1)))
-
-    print("Using device:", device)
-    print(f"TEST MAE={mae_all:.6f}, RMSE={rmse_all:.6f}")
-    for name, mae, rmse in zip(columns, mae_dim, rmse_dim):
-        print(f"{name}: MAE={mae:.6f}, RMSE={rmse:.6f}")
+    rel_mae_dim = mae_dim / np.abs(test_raw.mean(axis=0)) * 100
 
     best_idx = int(np.argmin(sample_rmse))
     worst_idx = int(np.argmax(sample_rmse))
     median_idx = int(np.argsort(sample_rmse)[len(sample_rmse) // 2])
-    print(f"best sample: idx={best_idx}, RMSE={sample_rmse[best_idx]:.6f}")
+
+    print("\n========== 评估配置 ==========")
+    print("Using device:", device)
+    print("资源列:", ", ".join(columns))
+    print(f"测试窗口数: {len(x_raw)}, 历史窗口: {cfg['window_size']}, 预测步长: {cfg['pred_horizon']}")
+
+    print("\n========== 数据分布漂移检查（原始尺度） ==========")
+    print(f"{'split':<8} {'Bandwidth mean':>15} {'CPU mean':>12} {'MEM mean':>12}")
+    print(f"{'train':<8} {train_raw.mean(axis=0)[0]:>15.6f} {train_raw.mean(axis=0)[1]:>12.6f} {train_raw.mean(axis=0)[2]:>12.6f}")
+    print(f"{'val':<8} {val_raw.mean(axis=0)[0]:>15.6f} {val_raw.mean(axis=0)[1]:>12.6f} {val_raw.mean(axis=0)[2]:>12.6f}")
+    print(f"{'test':<8} {test_raw.mean(axis=0)[0]:>15.6f} {test_raw.mean(axis=0)[1]:>12.6f} {test_raw.mean(axis=0)[2]:>12.6f}")
+    print(f"{'split':<8} {'Bandwidth p95':>15} {'CPU p95':>12} {'MEM p95':>12}")
+    train_p95 = np.percentile(train_raw, 95, axis=0)
+    val_p95 = np.percentile(val_raw, 95, axis=0)
+    test_p95 = np.percentile(test_raw, 95, axis=0)
+    print(f"{'train':<8} {train_p95[0]:>15.6f} {train_p95[1]:>12.6f} {train_p95[2]:>12.6f}")
+    print(f"{'val':<8} {val_p95[0]:>15.6f} {val_p95[1]:>12.6f} {val_p95[2]:>12.6f}")
+    print(f"{'test':<8} {test_p95[0]:>15.6f} {test_p95[1]:>12.6f} {test_p95[2]:>12.6f}")
+
+    print("\n========== 整体误差（原始尺度） ==========")
+    print(f"TEST MAE={mae_all:.6f}, RMSE={rmse_all:.6f}")
+
+    print("\n========== 各资源维度误差（原始尺度） ==========")
+    print(f"{'resource':<12} {'MAE':>12} {'RelMAE':>12} {'RMSE':>12}")
+    for name, mae, rel_mae, rmse in zip(columns, mae_dim, rel_mae_dim, rmse_dim):
+        print(f"{name:<12} {mae:>12.6f} {rel_mae:>11.3f}% {rmse:>12.6f}")
+
+    print("\n========== 样本级 RMSE ==========")
+    print(f"best   sample: idx={best_idx}, RMSE={sample_rmse[best_idx]:.6f}")
     print(f"median sample: idx={median_idx}, RMSE={sample_rmse[median_idx]:.6f}")
-    print(f"worst sample: idx={worst_idx}, RMSE={sample_rmse[worst_idx]:.6f}")
+    print(f"worst  sample: idx={worst_idx}, RMSE={sample_rmse[worst_idx]:.6f}")
+
+    print("\n========== 最差样本各资源误差 ==========")
+    print(f"{'resource':<12} {'MAE':>12} {'RMSE':>12}")
     for name, mae, rmse in zip(
         columns,
         np.abs(err[worst_idx]).mean(axis=0),
         np.sqrt((err[worst_idx] ** 2).mean(axis=0)),
     ):
-        print(f"worst {name}: MAE={mae:.6f}, RMSE={rmse:.6f}")
+        print(f"{name:<12} {mae:>12.6f} {rmse:>12.6f}")
 
+    print("\n========== 样本 RMSE 分位数 ==========")
     for q in [50, 75, 90, 95, 99, 100]:
-        print(f"sample RMSE P{q}: {np.percentile(sample_rmse, q):.6f}")
+        print(f"P{q:<3}: {np.percentile(sample_rmse, q):.6f}")
 
+    print("\n========== Top-k 样本平方误差贡献 ==========")
     sq = sample_rmse ** 2
     order = np.argsort(sq)[::-1]
     for k in [1, 5, 10, 20, 50]:
         k = min(k, len(order))
         share = sq[order[:k]].sum() / sq.sum()
-        print(f"top {k} samples contribute {share * 100:.2f}% of total squared error")
+        print(f"top {k:<2} samples: {share * 100:.2f}%")
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
