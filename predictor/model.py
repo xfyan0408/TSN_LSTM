@@ -38,6 +38,8 @@ class ResourcePredictor(nn.Module):
     ):
         super().__init__()
         self.pred_horizon = pred_horizon
+        self.period_alpha = nn.Parameter(torch.zeros(1, 1, input_dim))
+        self.trend_alpha = nn.Parameter(torch.zeros(1, 1, input_dim))
         """
         ChannelMix
         3 个输入维度混合成 hidden_dim 维特征:
@@ -82,10 +84,18 @@ class ResourcePredictor(nn.Module):
         self.head_c = make_head()
         self.head_m = make_head()
 
-    def forward(self, x):
-        # x 是归一化后的历史窗口，base 也在归一化空间里。
-        base = x[:, -1:, :].repeat(1, self.pred_horizon, 1)
+    def build_trend_base(self, x):
+        H = self.pred_horizon
+        last = x[:, -1:, :].repeat(1, H, 1)
+        if x.size(1) >= 2 * H:
+            cur = x[:, -H:, :]
+            prev = x[:, -2 * H:-H, :]
+            level_trend = cur.mean(dim=1, keepdim=True) - prev.mean(dim=1, keepdim=True)
+            return last + self.period_alpha * (cur - last) + self.trend_alpha * level_trend
+        return last
 
+    def forward(self, x):
+        base = self.build_trend_base(x)
         z = self.channel_mix(x)
         z = z.transpose(1, 2) # 交换 z 的第 1 维和第 2 维。
         z = self.tcn(z)
